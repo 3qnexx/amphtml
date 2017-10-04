@@ -23,7 +23,6 @@ module.exports = {
     'fixture',
     'browserify',
     'mocha',
-    'chai-as-promised',
     'sinon-chai',
     'chai',
   ],
@@ -46,30 +45,38 @@ module.exports = {
     bundleDelay: 900,
   },
 
-  reporters: process.env.TRAVIS ? ['super-dots', 'mocha'] : ['dots', 'mocha'],
+  reporters: ['super-dots', 'karmaSimpleReporter'],
 
   superDotsReporter: {
     color: {
-      success : 'green',
-      failure : 'red',
-      ignore  : 'yellow'
+      success: 'green',
+      failure: 'red',
+      ignore: 'yellow',
     },
     icon: {
-      success : '●',
-      failure : '●',
-      ignore  : '○',
+      success: '●',
+      failure: '●',
+      ignore: '○',
     },
   },
 
+  specReporter: {
+    suppressPassed: true,
+    suppressSkipped: true,
+    suppressFailed: false,
+    suppressErrorSummary: true,
+    maxLogLines: 10,
+  },
+
   mochaReporter: {
-    output: 'minimal',
+    output: 'full',
     colors: {
       success: 'green',
       error: 'red',
       info: 'yellow',
     },
     symbols: {
-      success : '●',
+      success: '●',
       error: '●',
       info: '○',
     },
@@ -103,7 +110,7 @@ module.exports = {
   concurrency: 6,
 
   customLaunchers: {
-    /*eslint "google-camelcase/google-camelcase": 0*/
+    /* eslint "google-camelcase/google-camelcase": 0*/
     Chrome_travis_ci: {
       base: 'Chrome',
       flags: ['--no-sandbox', '--disable-extensions'],
@@ -204,7 +211,6 @@ module.exports = {
   plugins: [
     'karma-browserify',
     'karma-chai',
-    'karma-chai-as-promised',
     'karma-chrome-launcher',
     'karma-coverage',
     'karma-edge-launcher',
@@ -216,6 +222,7 @@ module.exports = {
     'karma-mocha-reporter',
     'karma-safari-launcher',
     'karma-sauce-launcher',
+    'karma-simple-reporter',
     'karma-sinon-chai',
     'karma-super-dots-reporter',
     {

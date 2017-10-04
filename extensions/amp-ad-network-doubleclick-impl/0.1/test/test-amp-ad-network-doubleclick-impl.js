@@ -19,6 +19,7 @@ import {
   AmpA4A,
   CREATIVE_SIZE_HEADER,
 } from '../../../amp-a4a/0.1/amp-a4a';
+import {DATA_ATTR_NAME} from '../../../amp-a4a/0.1/refresh-manager';
 import {VerificationStatus} from '../../../amp-a4a/0.1/signature-verifier';
 import {
   AMP_SIGNATURE_HEADER,
@@ -32,6 +33,7 @@ import {
   CORRELATOR_CLEAR_EXP_NAME,
 } from '../amp-ad-network-doubleclick-impl';
 import {
+  DFP_CANONICAL_FF_EXPERIMENT_NAME,
   DOUBLECLICK_A4A_EXPERIMENT_NAME,
   DOUBLECLICK_EXPERIMENT_FEATURE,
 } from '../doubleclick-a4a-config';
@@ -144,6 +146,13 @@ describes.realWin('amp-ad-network-doubleclick-impl', realWinConfig, env => {
       impl = new AmpAdNetworkDoubleclickImpl(element);
       expect(impl.isValidElement()).to.be.true;
     });
+    it('should not be valid if remote.html present', () => {
+      const meta = doc.createElement('meta');
+      meta.setAttribute('name', 'amp-3p-iframe-src');
+      doc.head.appendChild(meta);
+      impl = new AmpAdNetworkDoubleclickImpl(element);
+      expect(impl.isValidElement()).to.be.false;
+    });
   });
 
 
@@ -220,6 +229,32 @@ describes.realWin('amp-ad-network-doubleclick-impl', realWinConfig, env => {
       expect(fireDelayedImpressionsSpy.withArgs(
           'https://c.com?e=f,https://d.com?g=h', true)).to.be.calledOnce;
     });
+
+    it('should initialize refresh manager', () => {
+      impl.extractSize({
+        get(name) {
+          return name == 'amp-force-refresh' ? '30' : undefined;
+        },
+        has(name) {
+          return !!this.get(name);
+        },
+      });
+      expect(impl.element.getAttribute(DATA_ATTR_NAME)).to.equal('30');
+    });
+
+    it('should not override publisher\'s refresh settings', () => {
+      impl.element.setAttribute(DATA_ATTR_NAME, '45');
+      impl.extractSize({
+        get(name) {
+          return name == 'amp-force-refresh' ? '30' : undefined;
+        },
+        has(name) {
+          return !!this.get(name);
+        },
+      });
+      expect(impl.element.getAttribute(DATA_ATTR_NAME)).to.equal('45');
+    });
+
   });
 
   describe('#onCreativeRender', () => {
@@ -378,7 +413,6 @@ describes.realWin('amp-ad-network-doubleclick-impl', realWinConfig, env => {
           /(\?|&)oid=2(&|$)/,
           /(\?|&)isw=[0-9]+(&|$)/,
           /(\?|&)ish=[0-9]+(&|$)/,
-          /(\?|&)pfx=(1|0)(&|$)/,
           /(\?|&)eid=([^&]+%2c)*12345678(%2c[^&]+)*(&|$)/,
           /(\?|&)url=https?%3A%2F%2F[a-zA-Z0-9.:%-]+(&|$)/,
           /(\?|&)top=localhost(&|$)/,
@@ -553,8 +587,15 @@ describes.realWin('amp-ad-network-doubleclick-impl', realWinConfig, env => {
           return impl.getAdUrl().then(url2 => {
             expect(url2).to.match(/(\?|&)rc=1(&|$)/);
             expect(url1).to.match(/(\?|&)ifi=1(&|$)/);
+            expect(url2).to.not.match(/(\?|&)frc=1(&|$)/);
           });
         });
+      });
+    });
+    it('has correct frc value', () => {
+      impl.fromResumeCallback = true;
+      impl.getAdUrl().then(url => {
+        expect(url).to.match(/(\?|&)frc=1(&|$)/);
       });
     });
   });
@@ -916,6 +957,30 @@ describes.realWin('amp-ad-network-doubleclick-impl', realWinConfig, env => {
       expect(onVisibilityChangedHandler).to.not.be.ok;
       expect(isInExperiment(elem2, CORRELATOR_CLEAR_EXP_BRANCHES.EXPERIMENT))
           .to.be.true;
+    });
+  });
+
+  describe('shouldPreferentialRenderWithoutCrypto', () => {
+    beforeEach(() => {
+      element = doc.createElement('amp-ad');
+      element.setAttribute('type', 'doubleclick');
+      element.setAttribute('data-ad-client', 'adsense');
+      doc.body.appendChild(element);
+      impl = new AmpAdNetworkDoubleclickImpl(element);
+    });
+
+    afterEach(() => {
+      doc.body.removeChild(element);
+    });
+
+    it('should return false when not in canonical non-SSL experiment', () => {
+      expect(impl.shouldPreferentialRenderWithoutCrypto()).to.be.false;
+    });
+
+    it('should return true when in canonical non-SSL experiment', () => {
+      forceExperimentBranch(impl.win, DFP_CANONICAL_FF_EXPERIMENT_NAME,
+          DOUBLECLICK_EXPERIMENT_FEATURE.CANONICAL_HTTP_EXPERIMENT);
+      expect(impl.shouldPreferentialRenderWithoutCrypto()).to.be.true;
     });
   });
 });
